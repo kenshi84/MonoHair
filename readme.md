@@ -79,6 +79,82 @@ Download our example datas [One Driven](https://1drv.ms/f/s!AhfQmEHzY54Ya2gGaslX
 	# Strands generation
 	python HairGrow.py --yaml=configs/reconstruct/big_wavy1
 
+## Calibrated synthetic cases ##
+
+For a case containing `cropped/images/*.jpg`, `sparse/{cameras,images,points3D}.bin`,
+and `head_flame.obj` in FLAME topology, run:
+
+```bash
+python run_synthetic.py input/synth/ct2hair/bangs
+```
+
+Inputs must use millimeters, +Y up, +Z front, and +X left. The adapter reads
+PINHOLE/SIMPLE_PINHOLE COLMAP calibration without estimating or optimizing cameras,
+and uses the supplied head without fitting or deforming it. Images are processed
+at half size by default (1200 pixels high × 800 wide for these cases), with each camera's focal lengths
+and principal point scaled to match. Use `--image-scale 1` for native resolution.
+All registered images are used; additional GT masks and reconstructions are ignored.
+
+The output for this example is `output/synth/ct2hair/bangs/`:
+
+- `head_flame.obj` and `sparse/*.bin`: byte-identical copies of the inputs.
+- `connected_strands.hair`: the existing MonoHair binary strand format, in the
+  **original millimeter coordinates**. Read it with `Utils.Utils.load_strand`.
+- `coordinate_transform.json`: input checksums, image names, and the forward/inverse
+  transforms. Internal coordinates are meters, translated so corresponding FLAME
+  scalp centroids match the existing canonical frame; world axes are not rotated.
+- `work/`: working images, camera conversions, generated `case.yaml`, NGP snapshot,
+  meshes, masks, orientation/depth maps, stage logs, and reconstruction results.
+  Geometry in this directory uses the internal frame, including
+  `work/results/synthetic/full/connected_strands.hair`. Use the case-root export for GT evaluation.
+  The raw `work/ngp/base.obj` uses NGP's `(y,z,x)` axis order; its converted copy
+  `work/ours/colmap_points.obj` uses the internal `(x,y,z)` frame.
+
+The original capture configurations and their defaults remain supported. Synthetic
+interior inference still uses the existing 16-view virtual rig and pretrained models.
+No manual key frame, COLMAP rerun, SMPL-X fitting, or pre-trained per-case NGP snapshot
+is needed. NGP uses the inferred MODNet silhouette as image alpha to exclude the
+background. Its defaults are 35,000 training steps and a 512³ extraction grid,
+restricted to MonoHair's existing 0.64 × 0.64 × 0.48 meter reconstruction volume.
+
+The standard MODNet, CDGNet, and DeepMVSHair checkpoints, CUDA, compiled `pyngp`, and
+headless EGL rendering are required. Missing dependencies are reported before a full
+run starts. Existing checkpoint locations can be supplied without copying them:
+
+```bash
+python run_synthetic.py input/synth/ct2hair/bangs \
+  --modnet-checkpoint /path/to/modnet_photographic_portrait_matting.ckpt \
+  --cdgnet-checkpoint /path/to/LIP_epoch_149.pth
+```
+
+Use the roughly 300 MB **CDGNet** checkpoint linked in
+[its repository](https://github.com/tjpulkl/CDGNet); the similarly named CE2P model is incompatible.
+
+Input checks and preparation do not need model weights or CUDA:
+
+```bash
+for case_dir in input/synth/ct2hair/*; do
+  python run_synthetic.py "$case_dir" --check-only || break
+done
+python run_synthetic.py input/synth/ct2hair/bangs --stage prepare
+```
+
+For an interrupted run, individual stages are available in order:
+`prepare`, `images`, `ngp`, `depth`, `pmvo`, `inner`, `grow`, `export`.
+For example, `--stage inner` uses the generated case configuration and also runs
+the subsequent PMVO interior fusion. Stages use the prepared image scale; rerun
+preparation and downstream stages when changing it. A normal run executes every
+stage afresh. `--input-root` and `--output-root` change the two roots while retaining
+the relative case path.
+
+Geometry and preservation regression tests (including the ten cases when present):
+
+```bash
+mkdir -p output/tests
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider \
+  tests/test_synthetic.py --basetemp=output/tests/synthetic
+```
+
 ## Visualization ##
 Download our released program at  [One Driven](https://1drv.ms/f/s!AhfQmEHzY54Ya2gGaslXnM2IPCk?e=phk5me "One Driven") to visualize the results. 
 

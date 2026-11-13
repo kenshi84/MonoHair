@@ -1,4 +1,5 @@
 import os
+import subprocess
 from Utils.Utils import save_hair_strands
 from HairGrow import HairGrowing
 
@@ -67,7 +68,7 @@ if __name__ == '__main__':
 
         camera = load_cam(args.camera_path)
         image_path = os.path.join(args.data.root, 'trainning_images/capture_images')
-        camera = parsing_camera(camera, image_path)
+        camera = parsing_camera(camera, image_path if os.path.isdir(image_path) else None)
         render_data(camera ,strands ,vertices ,faces ,[1280 ,720] ,os.path.join(args.data.root ,'imgs'))
 
 
@@ -83,9 +84,16 @@ if __name__ == '__main__':
         mvs_args.set_defaults(config='configs/dense_sample_real/vit_standard.txt')
         mvs_args.add_argument('--use_colmap_points' ,action='store_true' ,default=False)
         mvs_args.add_argument('--case' ,type=str ,default=args.data.case)
-        mvs_args =mvs_args.parse_known_args()[0]
+        mvs_args = mvs_args.parse_known_args()[0]
+        # The working case may live outside data/ (including a nested output case).
+        mvs_args.root_folder = os.path.dirname(os.path.normpath(root))
+        mvs_args.case = os.path.basename(os.path.normpath(root))
+        mvs_args.calib_folder = os.path.dirname(camera_path)
         deep_mvs_eval(mvs_args)
         torch.cuda.empty_cache()
-        cmd = 'python PMVO.py --yaml=configs/reconstruct/{} --PMVO.infer_inner --PMVO.optimize='.format(case)  ### if out of memory, run this code independent
-        os.system(cmd)
+        overrides = [arg for arg in sys.argv[1:]
+                     if arg.split('=')[0].rstrip('!') not in
+                     ('--PMVO.infer_inner', '--PMVO.optimize')]
+        subprocess.run([sys.executable, 'PMVO.py', *overrides,
+                        '--PMVO.infer_inner', '--PMVO.optimize='], check=True)
 

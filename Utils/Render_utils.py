@@ -274,6 +274,7 @@ def render_data(camera, strands, vertices, faces, image_size=[1280, 720], save_r
     Render.add_mesh(renderBust)
     os.makedirs(save_root, exist_ok=True)
     for view, c in camera.items():
+        os.makedirs(os.path.join(save_root, view), exist_ok=True)
         Render.draw(c, clear_color=[1., 1., 1.])
         depth = Render.ReadBuffer()
         cv2.imwrite(os.path.join(save_root, view, 'bust_depth.png'), depth * 255,
@@ -308,8 +309,9 @@ def render_data(camera, strands, vertices, faces, image_size=[1280, 720], save_r
 
 
 def render_bust_hair_depth(colmap_points_path, camera_path, save_root, image_size=[1280, 720], capture_imgs=False,
-                           bust_path=None, Headless=True):
-    bust_to_origin = np.array([0.006, -1.644, 0.010])
+                           bust_path=None, Headless=True, bust_to_origin=(0.006, -1.644, 0.010)):
+    bust_to_origin = np.asarray(bust_to_origin)
+    os.makedirs(save_root, exist_ok=True)
     # mesh = trimesh.load(colmap_points_path)
     mesh = o3d.io.read_triangle_mesh(colmap_points_path)
     colmap_points = np.array(mesh.vertices)
@@ -342,6 +344,7 @@ def render_bust_hair_depth(colmap_points_path, camera_path, save_root, image_siz
             cv2.imwrite(os.path.join(save_root, view + '.JPG'), depth_save)
         # depth.save(os.path.join(save_root, view+'.JPG'))
         else:
+            os.makedirs(os.path.join(save_root, view), exist_ok=True)
             # depth = depth.convert('RGB')
             # depth.save(os.path.join(save_root, view,'bust_hair_depth.png'))
             cv2.imwrite(os.path.join(save_root, view, 'bust_hair_depth.png'), depth * 255)

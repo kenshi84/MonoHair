@@ -158,6 +158,6 @@ def parsing_camera(cam,image_path=None):
     for c in cam[::step]:
         if image_path is None:
             camera[c['file']] = Camera(c['ndc_prj'], np.linalg.inv(np.array(c['pose'])), c['file'])
-        elif c['file']+'.png' in files or c['file']+'.JPG' in files or c['file']+'.jpg':
+        elif any(c['file'] + suffix in files for suffix in ('.png', '.JPG', '.jpg')):
             camera[c['file']] = Camera(c['ndc_prj'], np.linalg.inv(np.array(c['pose'])), c['file'])
     return camera
